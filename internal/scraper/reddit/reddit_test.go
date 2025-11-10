@@ -120,8 +120,8 @@ func TestRedditScraper_Scrape_Subreddit(t *testing.T) {
 	mockClient := &MockHTTPClient{
 		responses: map[string][]byte{
 			"https://www.reddit.com/r/test/hot.json?limit=100": createMockListing(posts, ""),
-			"https://i.redd.it/test1.jpg":                       []byte("fake image data 1"),
-			"https://i.redd.it/test2.jpg":                       []byte("fake image data 2"),
+			"https://i.redd.it/test1.jpg":                      []byte("fake image data 1"),
+			"https://i.redd.it/test2.jpg":                      []byte("fake image data 2"),
 		},
 	}
 
@@ -193,7 +193,7 @@ func TestRedditScraper_Filter_MinUpvotes(t *testing.T) {
 	mockClient := &MockHTTPClient{
 		responses: map[string][]byte{
 			"https://www.reddit.com/r/test/hot.json?limit=100": createMockListing(posts, ""),
-			"https://i.redd.it/test1.jpg":                       []byte("fake image data 1"),
+			"https://i.redd.it/test1.jpg":                      []byte("fake image data 1"),
 		},
 	}
 
@@ -262,7 +262,7 @@ func TestRedditScraper_Filter_DateRange(t *testing.T) {
 	mockClient := &MockHTTPClient{
 		responses: map[string][]byte{
 			"https://www.reddit.com/r/test/hot.json?limit=100": createMockListing(posts, ""),
-			"https://i.redd.it/test2.jpg":                       []byte("fake image data 2"),
+			"https://i.redd.it/test2.jpg":                      []byte("fake image data 2"),
 		},
 	}
 
@@ -319,7 +319,7 @@ func TestRedditScraper_Filter_MaxPosts(t *testing.T) {
 	mockClient := &MockHTTPClient{
 		responses: map[string][]byte{
 			"https://www.reddit.com/r/test/hot.json?limit=100": createMockListing(posts, ""),
-			"https://i.redd.it/test.jpg":                        []byte("fake image data"),
+			"https://i.redd.it/test.jpg":                       []byte("fake image data"),
 		},
 	}
 
@@ -367,7 +367,7 @@ func TestRedditScraper_Deduplication(t *testing.T) {
 	mockClient := &MockHTTPClient{
 		responses: map[string][]byte{
 			"https://www.reddit.com/r/test/hot.json?limit=100": createMockListing([]RedditPost{post}, ""),
-			"https://i.redd.it/test.jpg":                        []byte("fake image data"),
+			"https://i.redd.it/test.jpg":                       []byte("fake image data"),
 		},
 	}
 

@@ -243,8 +243,8 @@ func (s *Scraper) processPost(ctx context.Context, post *RedditPost) error {
 			PostedAt:     time.Unix(int64(post.CreatedUTC), 0),
 			DownloadedAt: time.Now(),
 			Metadata: map[string]interface{}{
-				"subreddit":  post.Subreddit,
-				"post_id":    post.ID,
+				"subreddit":    post.Subreddit,
+				"post_id":      post.ID,
 				"num_comments": post.NumComments,
 			},
 		}

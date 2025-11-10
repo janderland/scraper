@@ -58,9 +58,42 @@ func (t *Tagger) ApplyAutoTags(media *models.Media) error {
 
 // ApplyAutoTagsToAll applies automatic tags to all media items in the database
 func (t *Tagger) ApplyAutoTagsToAll() error {
-	// This would require a method to iterate through all media
-	// For now, this is a placeholder
-	return fmt.Errorf("not implemented")
+	// Get total count
+	count, err := t.db.CountMedia()
+	if err != nil {
+		return fmt.Errorf("failed to count media: %w", err)
+	}
+
+	if count == 0 {
+		return nil // No media to process
+	}
+
+	// Process in batches to avoid loading everything into memory
+	batchSize := 100
+	processed := 0
+	errors := 0
+
+	for offset := 0; offset < count; offset += batchSize {
+		media, err := t.db.GetAllMedia(batchSize, offset)
+		if err != nil {
+			return fmt.Errorf("failed to fetch media batch: %w", err)
+		}
+
+		for _, m := range media {
+			if err := t.ApplyAutoTags(m); err != nil {
+				fmt.Printf("Error applying auto-tags to media %d: %v\n", m.ID, err)
+				errors++
+			} else {
+				processed++
+			}
+		}
+	}
+
+	if errors > 0 {
+		fmt.Printf("Applied auto-tags to %d media items with %d errors\n", processed, errors)
+	}
+
+	return nil
 }
 
 // buildSearchText builds a searchable text string from media metadata

@@ -328,6 +328,58 @@ func (d *Database) GetMediaTags(mediaID int64) ([]*models.Tag, error) {
 	return tags, rows.Err()
 }
 
+// GetAllMedia retrieves all media items from the database
+func (d *Database) GetAllMedia(limit, offset int) ([]*models.Media, error) {
+	query := `
+		SELECT id, platform, media_type, url, local_path, hash, title, description,
+			author, source_url, upvotes, posted_at, downloaded_at, metadata
+		FROM media
+		ORDER BY downloaded_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := d.db.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*models.Media
+	for rows.Next() {
+		media := &models.Media{}
+		var metadataJSON string
+		var postedAt sql.NullTime
+
+		err := rows.Scan(
+			&media.ID, &media.Platform, &media.MediaType, &media.URL, &media.LocalPath,
+			&media.Hash, &media.Title, &media.Description, &media.Author, &media.SourceURL,
+			&media.Upvotes, &postedAt, &media.DownloadedAt, &metadataJSON,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if postedAt.Valid {
+			media.PostedAt = postedAt.Time
+		}
+
+		if err := json.Unmarshal([]byte(metadataJSON), &media.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+
+		results = append(results, media)
+	}
+
+	return results, rows.Err()
+}
+
+// CountMedia returns the total number of media items
+func (d *Database) CountMedia() (int, error) {
+	var count int
+	err := d.db.QueryRow("SELECT COUNT(*) FROM media").Scan(&count)
+	return count, err
+}
+
 // Close closes the database connection
 func (d *Database) Close() error {
 	return d.db.Close()
