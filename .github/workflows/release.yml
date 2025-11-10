@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Build Linux AMD64
+      env:
+        GOOS: linux
+        GOARCH: amd64
+      run: |
+        go build -v -o scraper-linux-amd64 ./cmd/scraper
+        go build -v -o scraper-gui-linux-amd64 ./cmd/gui || true
+
+    - name: Build Linux ARM64
+      env:
+        GOOS: linux
+        GOARCH: arm64
+      run: |
+        CGO_ENABLED=0 go build -v -o scraper-linux-arm64 ./cmd/scraper
+
+    - name: Build macOS AMD64
+      env:
+        GOOS: darwin
+        GOARCH: amd64
+        CGO_ENABLED: 0
+      run: |
+        go build -v -o scraper-darwin-amd64 ./cmd/scraper
+
+    - name: Build macOS ARM64
+      env:
+        GOOS: darwin
+        GOARCH: arm64
+        CGO_ENABLED: 0
+      run: |
+        go build -v -o scraper-darwin-arm64 ./cmd/scraper
+
+    - name: Build Windows AMD64
+      env:
+        GOOS: windows
+        GOARCH: amd64
+        CGO_ENABLED: 0
+      run: |
+        go build -v -o scraper-windows-amd64.exe ./cmd/scraper
+
+    - name: Create archives
+      run: |
+        tar -czf scraper-linux-amd64.tar.gz scraper-linux-amd64 README.md EXAMPLES.md config/
+        tar -czf scraper-linux-arm64.tar.gz scraper-linux-arm64 README.md EXAMPLES.md config/
+        tar -czf scraper-darwin-amd64.tar.gz scraper-darwin-amd64 README.md EXAMPLES.md config/
+        tar -czf scraper-darwin-arm64.tar.gz scraper-darwin-arm64 README.md EXAMPLES.md config/
+        zip scraper-windows-amd64.zip scraper-windows-amd64.exe README.md EXAMPLES.md config/*
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "# Changelog" > CHANGELOG.md
+        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s" >> CHANGELOG.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          scraper-linux-amd64.tar.gz
+          scraper-linux-arm64.tar.gz
+          scraper-darwin-amd64.tar.gz
+          scraper-darwin-arm64.tar.gz
+          scraper-windows-amd64.zip
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

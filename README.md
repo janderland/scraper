@@ -1,5 +1,11 @@
 # Web Scraper - Multi-Platform Media Downloader
 
+[![CI](https://github.com/janderland/scraper/workflows/CI/badge.svg)](https://github.com/janderland/scraper/actions/workflows/ci.yml)
+[![Quick Test](https://github.com/janderland/scraper/workflows/Quick%20Test/badge.svg)](https://github.com/janderland/scraper/actions/workflows/quick-test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/janderland/scraper)](https://goreportcard.com/report/github.com/janderland/scraper)
+[![codecov](https://codecov.io/gh/janderland/scraper/branch/main/graph/badge.svg)](https://codecov.io/gh/janderland/scraper)
+[![License](https://img.shields.io/badge/license-Educational-blue.svg)](LICENSE)
+
 A comprehensive web scraper written in Go that supports downloading media from Reddit, Instagram, and Facebook with advanced filtering, VPN routing, and a GUI for browsing downloaded content.
 
 ## Features
@@ -314,6 +320,60 @@ export DEBUG=1
 ./scraper -platform reddit -source pics -max 10
 ```
 
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+### CI Workflows
+
+1. **Main CI** (`.github/workflows/ci.yml`)
+   - Runs on every push and pull request
+   - Tests with Go 1.21 and 1.22
+   - Builds CLI and GUI applications
+   - Runs full test suite with race detection
+   - Generates code coverage reports
+   - Performs linting with golangci-lint
+   - Builds for multiple platforms (Linux, macOS, Windows)
+   - Runs security scans with gosec
+
+2. **Quick Test** (`.github/workflows/quick-test.yml`)
+   - Fast feedback on every commit
+   - Runs short tests only
+   - Checks code formatting
+   - Runs go vet
+
+3. **Release** (`.github/workflows/release.yml`)
+   - Triggers on version tags (v*)
+   - Builds binaries for all platforms
+   - Creates GitHub releases with artifacts
+   - Generates changelog automatically
+
+### Running CI Locally
+
+To run the same checks locally before pushing:
+
+```bash
+# Run tests
+go test -v -race ./...
+
+# Run linter
+golangci-lint run
+
+# Check formatting
+gofmt -s -l .
+
+# Run vet
+go vet ./...
+
+# Build all targets
+go build ./...
+```
+
+### Test Coverage
+
+Test coverage reports are automatically generated and uploaded to Codecov. View coverage at:
+https://codecov.io/gh/janderland/scraper
+
 ## Contributing
 
 Contributions are welcome! Please:
@@ -321,8 +381,11 @@ Contributions are welcome! Please:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+4. Ensure all tests pass (`go test ./...`)
+5. Ensure linting passes (`golangci-lint run`)
+6. Submit a pull request
+
+All pull requests must pass CI checks before merging.
 
 ## License
 
