@@ -5,6 +5,10 @@ package facebook
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -305,17 +309,77 @@ type RealHTTPClient struct {
 }
 
 // Get performs a real HTTP GET request to Facebook Graph API
-func (r *RealHTTPClient) Get(url string) ([]byte, error) {
-	// TODO: Implement real Facebook Graph API HTTP client
-	// This would need to:
-	// 1. Add access_token to URL parameters
-	// 2. Set proper headers
-	// 3. Handle rate limiting
-	// 4. Handle pagination
-	panic("RealHTTPClient not yet implemented - Facebook Graph API handling needed")
+func (r *RealHTTPClient) Get(urlStr string) ([]byte, error) {
+	// Parse URL to add access token
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	// Add access_token to query parameters
+	query := parsedURL.Query()
+	if r.accessToken != "" {
+		query.Set("access_token", r.accessToken)
+	}
+	parsedURL.RawQuery = query.Encode()
+
+	// Create request
+	req, err := http.NewRequest("GET", parsedURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Accept", "application/json")
+
+	// Make request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return body, nil
 }
 
 // GetStream performs a real HTTP GET request for streaming content
-func (r *RealHTTPClient) GetStream(url string) ([]byte, error) {
-	return r.Get(url)
+func (r *RealHTTPClient) GetStream(urlStr string) ([]byte, error) {
+	// For media files (images/videos), download directly
+	// Media URLs from Facebook already include authentication tokens
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
+	}
+
+	return body, nil
 }

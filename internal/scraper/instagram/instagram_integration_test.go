@@ -5,6 +5,9 @@ package instagram
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
@@ -271,17 +274,107 @@ type RealHTTPClient struct {
 }
 
 // Get performs a real HTTP GET request to Instagram with session cookie
-func (r *RealHTTPClient) Get(url string) ([]byte, error) {
-	// TODO: Implement real Instagram HTTP client with session cookie
-	// This would need to:
-	// 1. Set proper headers (User-Agent, etc.)
-	// 2. Include session cookie (sessionid)
-	// 3. Handle rate limiting
-	// 4. Parse responses properly
-	panic("RealHTTPClient not yet implemented - Instagram session handling needed")
+func (r *RealHTTPClient) Get(urlStr string) ([]byte, error) {
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set Instagram-specific headers
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+
+	// Add session cookie
+	if r.sessionID != "" {
+		req.AddCookie(&http.Cookie{
+			Name:  "sessionid",
+			Value: r.sessionID,
+		})
+	}
+
+	// Make request
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Allow redirects but limit to 10
+			if len(via) >= 10 {
+				return fmt.Errorf("too many redirects")
+			}
+			// Copy cookies to redirected request
+			if r.sessionID != "" {
+				req.AddCookie(&http.Cookie{
+					Name:  "sessionid",
+					Value: r.sessionID,
+				})
+			}
+			return nil
+		},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body[:min(200, len(body))]))
+	}
+
+	return body, nil
 }
 
 // GetStream performs a real HTTP GET request for streaming content
-func (r *RealHTTPClient) GetStream(url string) ([]byte, error) {
-	return r.Get(url)
+func (r *RealHTTPClient) GetStream(urlStr string) ([]byte, error) {
+	// For media files, use the same method but with longer timeout
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	// Add session cookie for authenticated media
+	if r.sessionID != "" {
+		req.AddCookie(&http.Cookie{
+			Name:  "sessionid",
+			Value: r.sessionID,
+		})
+	}
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
+	}
+
+	return body, nil
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

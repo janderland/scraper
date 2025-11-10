@@ -5,6 +5,12 @@ package reddit
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -272,20 +278,126 @@ type RealHTTPClient struct {
 	username     string
 	password     string
 	accessToken  string
+	tokenExpiry  time.Time
+}
+
+// getAccessToken obtains an OAuth2 access token from Reddit
+func (r *RealHTTPClient) getAccessToken() error {
+	// Check if we have a valid token
+	if r.accessToken != "" && time.Now().Before(r.tokenExpiry) {
+		return nil
+	}
+
+	// Build token request
+	data := url.Values{}
+	data.Set("grant_type", "password")
+	data.Set("username", r.username)
+	data.Set("password", r.password)
+
+	req, err := http.NewRequest("POST", "https://www.reddit.com/api/v1/access_token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create token request: %w", err)
+	}
+
+	// Set basic auth with client credentials
+	req.SetBasicAuth(r.clientID, r.clientSecret)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "golang:scraper:v1.0.0 (by /u/testuser)")
+
+	// Make request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to request token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		ExpiresIn   int    `json:"expires_in"`
+		Scope       string `json:"scope"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	r.accessToken = tokenResp.AccessToken
+	r.tokenExpiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	return nil
 }
 
 // Get performs a real HTTP GET request to Reddit API with OAuth authentication
-func (r *RealHTTPClient) Get(url string) ([]byte, error) {
-	// TODO: Implement OAuth2 token acquisition and authenticated requests
-	// For now, this is a placeholder that would need to:
-	// 1. Get OAuth token if not present
-	// 2. Make authenticated request with token
-	// 3. Handle rate limiting
-	// 4. Refresh token if expired
-	panic("RealHTTPClient not yet implemented - OAuth2 flow needed")
+func (r *RealHTTPClient) Get(urlStr string) ([]byte, error) {
+	// Get access token if needed
+	if err := r.getAccessToken(); err != nil {
+		return nil, fmt.Errorf("failed to get access token: %w", err)
+	}
+
+	// Create request
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add OAuth token
+	req.Header.Set("Authorization", "Bearer "+r.accessToken)
+	req.Header.Set("User-Agent", "golang:scraper:v1.0.0 (by /u/testuser)")
+
+	// Make request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return body, nil
 }
 
 // GetStream performs a real HTTP GET request for streaming content
-func (r *RealHTTPClient) GetStream(url string) ([]byte, error) {
-	return r.Get(url)
+func (r *RealHTTPClient) GetStream(urlStr string) ([]byte, error) {
+	// For media files, we don't need OAuth - just download directly
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "golang:scraper:v1.0.0 (by /u/testuser)")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
+	}
+
+	return body, nil
 }
