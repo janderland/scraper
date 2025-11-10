@@ -243,10 +243,14 @@ The scraper uses SQLite with the following main tables:
 
 ## Testing
 
-The project includes comprehensive tests for all scrapers:
+The project includes comprehensive tests for all scrapers in two categories:
+
+### Unit Tests (Default)
+
+Unit tests use mock HTTP clients and run fast without requiring credentials:
 
 ```bash
-# Run all tests
+# Run all unit tests
 go test ./...
 
 # Run specific platform tests
@@ -258,6 +262,43 @@ go test ./internal/scraper/facebook/
 go test -v ./internal/scraper/reddit/
 ```
 
+### Integration Tests
+
+Integration tests validate scrapers against real platforms and require credentials:
+
+```bash
+# Run all integration tests
+go test -tags=integration ./...
+
+# Run specific platform integration tests
+go test -tags=integration ./internal/scraper/reddit
+go test -tags=integration ./internal/scraper/instagram
+go test -tags=integration ./internal/scraper/facebook
+
+# Use the helper script
+./scripts/run-integration-tests.sh all
+./scripts/run-integration-tests.sh reddit -v
+```
+
+**Setting up credentials for integration tests:**
+
+1. Copy the example file:
+   ```bash
+   cp .env.test.example .env.test
+   ```
+
+2. Fill in your credentials in `.env.test`:
+   ```env
+   REDDIT_CLIENT_ID=your_client_id
+   REDDIT_CLIENT_SECRET=your_secret
+   INSTAGRAM_SESSION_ID=your_session_id
+   FACEBOOK_ACCESS_TOKEN=your_token
+   ```
+
+3. See [docs/INTEGRATION_TESTING.md](docs/INTEGRATION_TESTING.md) for detailed setup instructions
+
+**Important**: Integration tests make real API calls and are subject to rate limits. Run sparingly and follow platform Terms of Service.
+
 ### Test Coverage
 
 Tests include:
@@ -267,6 +308,7 @@ Tests include:
 - Deduplication
 - Error handling (no media posts, network failures)
 - Filter suggestions (Facebook)
+- Real API validation (integration tests)
 
 ## Architecture
 
@@ -357,7 +399,14 @@ The project uses GitHub Actions for continuous integration and deployment:
    - Checks code formatting
    - Runs go vet
 
-3. **Release** (`.github/workflows/release.yml`)
+3. **Integration Tests** (`.github/workflows/integration-tests.yml`)
+   - Manual trigger only (to avoid excessive API calls)
+   - Tests against real Reddit, Instagram, and Facebook APIs
+   - Validates scrapers work with current platform versions
+   - Requires credentials stored in GitHub Secrets
+   - See [docs/INTEGRATION_TESTING.md](docs/INTEGRATION_TESTING.md) for setup
+
+4. **Release** (`.github/workflows/release.yml`)
    - Triggers on version tags (v*)
    - Builds binaries for all platforms
    - Creates GitHub releases with artifacts

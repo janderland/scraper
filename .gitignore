@@ -25,6 +25,7 @@ downloads/
 # Config files with credentials
 config/credentials.json
 config/vpn_credentials.json
+.env.test
 
 # IDE
 .vscode/

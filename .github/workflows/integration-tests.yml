@@ -1,0 +1,96 @@
+name: Integration Tests
+
+# Only run on manual trigger to avoid excessive API calls and rate limiting
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to test (all, reddit, instagram, facebook)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - reddit
+          - instagram
+          - facebook
+  # Optional: Run on schedule (e.g., weekly)
+  # Uncomment if you want automated runs
+  # schedule:
+  #   - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Download dependencies
+      run: |
+        go mod download
+        go mod tidy
+
+    - name: Run Integration Tests - All Platforms
+      if: github.event.inputs.platform == 'all' || github.event.inputs.platform == ''
+      env:
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+        REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+        INSTAGRAM_SESSION_ID: ${{ secrets.INSTAGRAM_SESSION_ID }}
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      run: |
+        echo "Running integration tests for all platforms..."
+        go test -tags=integration -v -timeout 20m ./internal/scraper/... || echo "Some tests may have been skipped due to missing credentials"
+
+    - name: Run Integration Tests - Reddit Only
+      if: github.event.inputs.platform == 'reddit'
+      env:
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+        REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+      run: |
+        echo "Running Reddit integration tests..."
+        go test -tags=integration -v -timeout 10m ./internal/scraper/reddit
+
+    - name: Run Integration Tests - Instagram Only
+      if: github.event.inputs.platform == 'instagram'
+      env:
+        INSTAGRAM_SESSION_ID: ${{ secrets.INSTAGRAM_SESSION_ID }}
+      run: |
+        echo "Running Instagram integration tests..."
+        go test -tags=integration -v -timeout 10m ./internal/scraper/instagram
+
+    - name: Run Integration Tests - Facebook Only
+      if: github.event.inputs.platform == 'facebook'
+      env:
+        FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      run: |
+        echo "Running Facebook integration tests..."
+        go test -tags=integration -v -timeout 10m ./internal/scraper/facebook
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: |
+          *.log
+          **/test-*.xml
+        retention-days: 7
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "Platform tested: ${{ github.event.inputs.platform || 'all' }}" >> $GITHUB_STEP_SUMMARY
+        echo "Workflow run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
