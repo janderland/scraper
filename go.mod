@@ -9,6 +9,8 @@ require (
 	fyne.io/fyne/v2 v2.4.2
 	github.com/sahilm/fuzzy v0.1.1
 	golang.org/x/time v0.5.0
+	gopkg.in/yaml.v3 v3.0.1
+	golang.org/x/net v0.17.0
 )
 
 require (

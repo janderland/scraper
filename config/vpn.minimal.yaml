@@ -1,0 +1,11 @@
+# Minimal configuration without VPNs
+# For users who don't need VPN functionality
+
+database:
+  path: "./scraper.db"
+
+storage:
+  media_dir: "./downloads"
+
+# No VPNs configured - direct connections will be used
+vpns: []

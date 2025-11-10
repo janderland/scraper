@@ -1,0 +1,89 @@
+# Web Scraper Configuration File
+# Copy this file to vpn.yaml and customize for your setup
+
+# Database configuration
+database:
+  # Path to SQLite database file
+  path: "./scraper.db"
+
+# Storage configuration
+storage:
+  # Root directory for downloaded media files
+  # Files will be organized as: media_dir/platform/year/month/
+  media_dir: "./downloads"
+
+# VPN configurations
+# Multiple VPNs can be configured for load balancing and failover
+# Leave empty array [] if you don't want to use VPNs
+vpns:
+  # OpenVPN example
+  - name: "MyOpenVPN"
+    type: "openvpn"
+    enabled: true
+    priority: 10  # Higher priority VPNs are preferred (0-100)
+    max_bandwidth: 0  # 0 = unlimited, otherwise bytes per second
+
+    openvpn:
+      config_file: "/etc/openvpn/client/myconfig.ovpn"
+      # Option 1: Inline credentials
+      username: "myusername"
+      password: "mypassword"
+      # Option 2: Auth file (preferred for security)
+      # auth_file: "/etc/openvpn/auth.txt"
+
+    options:
+      auto_connect: true  # Connect automatically on startup
+      retry_attempts: 3
+      retry_delay: 5  # seconds
+      health_check_url: "https://api.ipify.org"
+      health_check_interval: 60  # seconds
+
+  # WireGuard example
+  - name: "MyWireGuard"
+    type: "wireguard"
+    enabled: true
+    priority: 20  # Higher priority than OpenVPN
+
+    wireguard:
+      config_file: "/etc/wireguard/wg0.conf"
+      interface: "wg0"
+
+    options:
+      auto_connect: true
+      retry_attempts: 3
+      retry_delay: 5
+      health_check_url: "https://api.ipify.org"
+      health_check_interval: 60
+
+  # SOCKS5 proxy example
+  - name: "MySocks5Proxy"
+    type: "socks5"
+    enabled: true
+    priority: 5  # Lower priority (fallback)
+
+    socks5:
+      host: "127.0.0.1"
+      port: 1080
+      # Optional authentication
+      username: ""
+      password: ""
+
+    options:
+      auto_connect: false  # SOCKS5 doesn't need explicit connection
+      health_check_url: "https://api.ipify.org"
+      health_check_interval: 60
+
+  # Another OpenVPN for redundancy
+  - name: "BackupVPN"
+    type: "openvpn"
+    enabled: false  # Disabled by default
+    priority: 5
+
+    openvpn:
+      config_file: "/etc/openvpn/client/backup.ovpn"
+      auth_file: "/etc/openvpn/backup-auth.txt"
+
+    options:
+      auto_connect: false
+      retry_attempts: 2
+      retry_delay: 10

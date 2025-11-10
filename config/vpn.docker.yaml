@@ -1,0 +1,24 @@
+# Configuration for Docker deployment
+
+database:
+  path: "/app/data/scraper.db"
+
+storage:
+  media_dir: "/app/media"
+
+# SOCKS5 proxy example for Docker
+# Use a sidecar container for the SOCKS5 proxy
+vpns:
+  - name: "docker-proxy"
+    type: "socks5"
+    enabled: true
+    priority: 10
+
+    socks5:
+      host: "proxy"  # Docker service name
+      port: 1080
+
+    options:
+      auto_connect: false
+      health_check_url: "https://api.ipify.org"
+      health_check_interval: 120

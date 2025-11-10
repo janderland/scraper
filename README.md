@@ -33,6 +33,7 @@ A comprehensive web scraper written in Go that supports downloading media from R
 - Go 1.21 or later
 - SQLite3
 - GCC (for CGo compilation of SQLite driver)
+- **Optional**: OpenVPN, WireGuard, or SOCKS5 proxy (for VPN support)
 
 ### Build from Source
 
@@ -40,9 +41,23 @@ A comprehensive web scraper written in Go that supports downloading media from R
 git clone https://github.com/janderland/scraper.git
 cd scraper
 go mod download
-go build -o scraper ./cmd/scraper
+go build -o scraper ./cmd/scraper-v2
 go build -o scraper-gui ./cmd/gui
 ```
+
+### Quick Start
+
+1. Copy example configuration:
+   ```bash
+   cp config/vpn.example.yaml config/vpn.yaml
+   ```
+
+2. Edit `config/vpn.yaml` with your settings
+
+3. Run the scraper:
+   ```bash
+   ./scraper --config config/vpn.yaml -platform reddit -source pics -max 50
+   ```
 
 ## Usage
 
